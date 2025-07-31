@@ -22,14 +22,12 @@ export default function TabLayout() {
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const webViewRef = useRef(null);
   const router = useRouter();
-  const maxRetries = 3;
-  let retryCount = 0;
 
   const CLOUDINARY_CLOUD_NAME = "dp3yktx6o";
   const CLOUDINARY_UPLOAD_PRESET = "my_upload_preset";
   const CLOUDINARY_API_KEY = "667625573425965";
 
-  // Enhanced MediaPipe PoseLandmarker HTML with better initialization and muscle measurements
+  // Simplified MediaPipe HTML that works more reliably
   const mediapipeHtml = `
     <!DOCTYPE html>
     <html>
@@ -37,56 +35,26 @@ export default function TabLayout() {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>MediaPipe PoseLandmarker</title>
+      <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.27"></script>
     </head>
     <body>
-      <script type="module">
-        console.log("Starting enhanced MediaPipe initialization...");
+      <script>
+        console.log("Starting simplified MediaPipe initialization...");
         
         let poseLandmarker = null;
         let isInitialized = false;
         
-        // Import MediaPipe modules
-        async function loadMediaPipe() {
-          try {
-            // Load from CDN with fallback
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.27/vision_bundle.js';
-            script.onload = initializePoseLandmarker;
-            script.onerror = () => {
-              console.error("Failed to load MediaPipe script");
-              window.ReactNativeWebView?.postMessage(JSON.stringify({ 
-                status: "error", 
-                message: "Failed to load MediaPipe library" 
-              }));
-            };
-            document.head.appendChild(script);
-          } catch (error) {
-            console.error("Error loading MediaPipe:", error);
-            window.ReactNativeWebView?.postMessage(JSON.stringify({ 
-              status: "error", 
-              message: "MediaPipe loading error: " + error.message 
-            }));
-          }
-        }
-        
+        // Simple initialization function
         async function initializePoseLandmarker() {
           try {
-            console.log("Initializing MediaPipe PoseLandmarker...");
+            console.log("Waiting for MediaPipe to load...");
             
             // Wait for MediaPipe to be available
-            let attempts = 0;
-            while (!window.MediaPipeTasksVision && attempts < 50) {
+            while (!window.FilesetResolver || !window.PoseLandmarker) {
               await new Promise(resolve => setTimeout(resolve, 100));
-              attempts++;
             }
             
-            if (!window.MediaPipeTasksVision) {
-              throw new Error("MediaPipe not available after waiting");
-            }
-            
-            const { PoseLandmarker, FilesetResolver } = window.MediaPipeTasksVision;
-            
-            console.log("Creating vision fileset...");
+            console.log("MediaPipe loaded, creating vision tasks...");
             const vision = await FilesetResolver.forVisionTasks(
               "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.27/wasm"
             );
@@ -95,24 +63,22 @@ export default function TabLayout() {
             poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
               baseOptions: {
                 modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-                delegate: "GPU"
               },
               runningMode: "IMAGE",
-              numPoses: 1,
-              minPoseDetectionConfidence: 0.5,
-              minPosePresenceConfidence: 0.5,
-              minTrackingConfidence: 0.5
+              numPoses: 1
             });
             
             isInitialized = true;
-            console.log("MediaPipe PoseLandmarker initialized successfully!");
-            window.ReactNativeWebView?.postMessage(JSON.stringify({ status: "initialized" }));
+            console.log("MediaPipe initialized successfully!");
+            window.ReactNativeWebView?.postMessage(JSON.stringify({ 
+              status: "initialized" 
+            }));
             
           } catch (error) {
-            console.error("MediaPipe initialization failed:", error);
+            console.error("MediaPipe initialization error:", error);
             window.ReactNativeWebView?.postMessage(JSON.stringify({ 
               status: "error", 
-              message: "Initialization failed: " + error.message 
+              message: "Failed to initialize: " + error.message 
             }));
           }
         }
@@ -124,154 +90,105 @@ export default function TabLayout() {
           return Math.sqrt(dx * dx + dy * dy);
         }
         
-        // Calculate muscle mass indicator based on pose landmarks
-        function calculateMuscleMetrics(landmarks) {
+        // Enhanced muscle measurements
+        function calculateEnhancedMeasurements(landmarks) {
           const keypoints = landmarks[0];
           
-          // Key pose landmarks for muscle measurements
-          const leftShoulder = keypoints[11];   // Left shoulder
-          const rightShoulder = keypoints[12];  // Right shoulder
-          const leftElbow = keypoints[13];      // Left elbow
-          const rightElbow = keypoints[14];     // Right elbow
-          const leftWrist = keypoints[15];      // Left wrist
-          const rightWrist = keypoints[16];     // Right wrist
-          const leftHip = keypoints[23];        // Left hip
-          const rightHip = keypoints[24];       // Right hip
-          const leftKnee = keypoints[25];       // Left knee
-          const rightKnee = keypoints[26];      // Right knee
-          const leftAnkle = keypoints[27];      // Left ankle
-          const rightAnkle = keypoints[28];     // Right ankle
+          // Key landmarks
+          const leftShoulder = keypoints[11];
+          const rightShoulder = keypoints[12];
+          const leftElbow = keypoints[13];
+          const rightElbow = keypoints[14];
+          const leftWrist = keypoints[15];
+          const rightWrist = keypoints[16];
+          const leftHip = keypoints[23];
+          const rightHip = keypoints[24];
+          const leftKnee = keypoints[25];
+          const rightKnee = keypoints[26];
+          const leftAnkle = keypoints[27];
+          const rightAnkle = keypoints[28];
           
-          // Chest/Pectoral measurements (shoulder to center chest estimation)
-          const chestCenter = {
-            x: (leftShoulder.x + rightShoulder.x) / 2,
-            y: (leftShoulder.y + rightShoulder.y) / 2 + 0.1 // Slightly below shoulders
-          };
-          
-          // Upper arm measurements (shoulder to elbow distance as muscle indicator)
-          const leftUpperArmLength = calculateDistance(leftShoulder, leftElbow);
-          const rightUpperArmLength = calculateDistance(rightShoulder, rightElbow);
-          const avgUpperArmLength = (leftUpperArmLength + rightUpperArmLength) / 2;
-          
-          // Forearm measurements (elbow to wrist)
-          const leftForearmLength = calculateDistance(leftElbow, leftWrist);
-          const rightForearmLength = calculateDistance(rightElbow, rightWrist);
-          const avgForearmLength = (leftForearmLength + rightForearmLength) / 2;
-          
-          // Shoulder width (muscle breadth indicator)
+          // Upper body measurements
           const shoulderWidth = calculateDistance(leftShoulder, rightShoulder);
+          const leftArmLength = calculateDistance(leftShoulder, leftElbow) + calculateDistance(leftElbow, leftWrist);
+          const rightArmLength = calculateDistance(rightShoulder, rightElbow) + calculateDistance(rightElbow, rightWrist);
+          const avgArmLength = (leftArmLength + rightArmLength) / 2;
           
-          // Torso measurements for core/six-pack area
+          // Core measurements
           const hipWidth = calculateDistance(leftHip, rightHip);
           const torsoLength = calculateDistance(
             { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 },
             { x: (leftHip.x + rightHip.x) / 2, y: (leftHip.y + rightHip.y) / 2 }
           );
           
-          // Six-pack/abdominal area calculations
-          const abdominalCenter = {
-            x: (leftHip.x + rightHip.x) / 2,
-            y: (leftHip.y + rightHip.y) / 2 - (torsoLength * 0.3) // 30% up from hips
-          };
-          
-          // Waist estimation (narrower than hips, between chest and hips)
+          // Six-pack area (abdomen)
           const waistWidth = hipWidth * 0.85; // Estimate waist as 85% of hip width
+          const abdominalLength = torsoLength * 0.6; // Lower 60% of torso
           
-          // Leg muscle measurements
+          // Leg measurements
+          const leftLegLength = calculateDistance(leftHip, leftKnee) + calculateDistance(leftKnee, leftAnkle);
+          const rightLegLength = calculateDistance(rightHip, rightKnee) + calculateDistance(rightKnee, rightAnkle);
+          const avgLegLength = (leftLegLength + rightLegLength) / 2;
+          
+          // Thigh measurements
           const leftThighLength = calculateDistance(leftHip, leftKnee);
           const rightThighLength = calculateDistance(rightHip, rightKnee);
           const avgThighLength = (leftThighLength + rightThighLength) / 2;
           
-          const leftCalfLength = calculateDistance(leftKnee, leftAnkle);
-          const rightCalfLength = calculateDistance(rightKnee, rightAnkle);
-          const avgCalfLength = (leftCalfLength + rightCalfLength) / 2;
-          
-          // Convert to relative measurements (multiply by 1000 for better readability)
           return {
-            // Upper body muscle measurements
+            // Muscle measurements (multiplied by 1000 for readability)
             shoulderWidth: (shoulderWidth * 1000).toFixed(1),
-            upperArmLength: (avgUpperArmLength * 1000).toFixed(1),
-            forearmLength: (avgForearmLength * 1000).toFixed(1),
-            chestWidth: (shoulderWidth * 0.9 * 1000).toFixed(1), // Estimate chest as 90% of shoulder width
+            armLength: (avgArmLength * 1000).toFixed(1),
+            chestWidth: (shoulderWidth * 0.95 * 1000).toFixed(1),
             
-            // Core/Six-pack measurements
+            // Six-pack/Core area
             waistWidth: (waistWidth * 1000).toFixed(1),
             abdominalWidth: (waistWidth * 1000).toFixed(1),
+            abdominalLength: (abdominalLength * 1000).toFixed(1),
             torsoLength: (torsoLength * 1000).toFixed(1),
             
-            // Lower body muscle measurements
+            // Lower body muscles
             hipWidth: (hipWidth * 1000).toFixed(1),
             thighLength: (avgThighLength * 1000).toFixed(1),
-            calfLength: (avgCalfLength * 1000).toFixed(1),
-            
-            // Overall body proportions
-            legLength: ((avgThighLength + avgCalfLength) * 1000).toFixed(1),
-            totalHeight: ((torsoLength + avgThighLength + avgCalfLength) * 1000).toFixed(1)
+            legLength: (avgLegLength * 1000).toFixed(1)
           };
         }
         
+        // Process image function
         async function processImage(base64Image) {
           try {
-            console.log("Processing image for pose detection...");
+            console.log("Processing image...");
             
             if (!isInitialized || !poseLandmarker) {
-              throw new Error("PoseLandmarker not initialized");
+              throw new Error("PoseLandmarker not ready");
             }
             
-            // Create image element
             const img = new Image();
             img.crossOrigin = "anonymous";
             
             await new Promise((resolve, reject) => {
-              img.onload = () => {
-                console.log("Image loaded successfully, dimensions:", img.width, "x", img.height);
-                resolve();
-              };
-              img.onerror = (error) => {
-                console.error("Failed to load image:", error);
-                reject(new Error("Failed to load image"));
-              };
+              img.onload = resolve;
+              img.onerror = () => reject(new Error("Failed to load image"));
               img.src = base64Image;
             });
             
-            console.log("Detecting pose landmarks...");
+            console.log("Detecting poses...");
             const results = poseLandmarker.detect(img);
-            
-            console.log("Pose detection results:", results);
             
             if (!results.landmarks || results.landmarks.length === 0) {
               throw new Error("No pose detected in the image");
             }
             
-            const landmarks = results.landmarks;
-            console.log("Number of poses detected:", landmarks.length);
+            const measurements = calculateEnhancedMeasurements(results.landmarks);
+            console.log("Measurements calculated:", measurements);
             
-            // Calculate enhanced muscle measurements
-            const muscleMetrics = calculateMuscleMetrics(landmarks);
-            console.log("Calculated muscle metrics:", muscleMetrics);
-            
-            // Check if key landmarks are visible with good confidence
-            const keypoints = landmarks[0];
-            const requiredPoints = [11, 12, 23, 24, 25, 26]; // shoulders, hips, knees
-            const minConfidence = 0.5;
-            
-            const visiblePoints = requiredPoints.filter(index => 
-              keypoints[index] && keypoints[index].visibility > minConfidence
-            );
-            
-            if (visiblePoints.length < 4) {
-              throw new Error(`Insufficient pose landmarks detected. Only ${visiblePoints.length}/6 key points visible.`);
-            }
-            
-            console.log("Pose analysis completed successfully");
             window.ReactNativeWebView?.postMessage(JSON.stringify({ 
               status: "success", 
-              measurements: muscleMetrics,
-              confidence: visiblePoints.length / requiredPoints.length
+              measurements: measurements
             }));
             
           } catch (error) {
-            console.error("Image processing error:", error);
+            console.error("Processing error:", error);
             window.ReactNativeWebView?.postMessage(JSON.stringify({ 
               status: "error", 
               message: error.message 
@@ -283,32 +200,28 @@ export default function TabLayout() {
         window.addEventListener("message", (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log("Received message:", data.action);
+            console.log("Received:", data.action);
             
             if (data.action === "initialize") {
               if (isInitialized) {
                 window.ReactNativeWebView?.postMessage(JSON.stringify({ status: "initialized" }));
               } else {
-                loadMediaPipe();
+                initializePoseLandmarker();
               }
             } else if (data.action === "processImage") {
               processImage(data.base64Image);
             }
           } catch (error) {
-            console.error("Message handling error:", error);
+            console.error("Message error:", error);
             window.ReactNativeWebView?.postMessage(JSON.stringify({ 
               status: "error", 
-              message: "Message handling failed: " + error.message 
+              message: "Message handling failed" 
             }));
           }
         });
         
-        // Auto-initialize when ready
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', loadMediaPipe);
-        } else {
-          loadMediaPipe();
-        }
+        // Auto-start initialization
+        setTimeout(initializePoseLandmarker, 1000);
         
       </script>
     </body>
@@ -335,7 +248,7 @@ export default function TabLayout() {
           router.replace('/LoginScreen');
         }
       } catch (error) {
-        console.error("Verification error:", error.code, error.message, error.stack);
+        console.error("Verification error:", error);
         setErrorMessage(`Verification: ${error.message}`);
         router.replace('/LoginScreen');
       }
@@ -343,186 +256,142 @@ export default function TabLayout() {
     checkVerification();
   }, [router]);
 
-  // Initialize WebView with improved retry logic
+  // Initialize WebView
   useEffect(() => {
-    console.log("Initializing WebView...");
-    const initializeWithRetry = () => {
+    const timer = setTimeout(() => {
       if (webViewRef.current) {
-        console.log("Posting initialize message to WebView");
+        console.log("Initializing WebView...");
         webViewRef.current.postMessage(JSON.stringify({ action: "initialize" }));
-      } else {
-        console.error("WebView ref not ready");
-        if (retryCount < maxRetries) {
-          retryCount += 1;
-          console.log(`Retrying WebView initialization (attempt ${retryCount}/${maxRetries})...`);
-          setTimeout(initializeWithRetry, 2000);
-        } else {
-          setErrorMessage("WebView initialization failed");
-          setIsModelLoading(false);
-          setIsModalVisible(true);
-        }
       }
-    };
+    }, 2000);
 
-    // Give WebView time to load
-    const timer = setTimeout(initializeWithRetry, 1000);
-    
-    // Timeout for initialization
     const timeout = setTimeout(() => {
-      if (isModelLoading && retryCount < maxRetries) {
-        retryCount += 1;
-        console.log(`Retrying MediaPipe initialization (attempt ${retryCount}/${maxRetries})...`);
-        initializeWithRetry();
-      } else if (isModelLoading) {
+      if (isModelLoading) {
         setIsModelLoading(false);
-        setErrorMessage("MediaPipe initialization timeout");
-        console.error("MediaPipe initialization failed after retries");
-        setIsModalVisible(true);
+        setErrorMessage("Model loading timeout - you can still try taking a photo");
       }
-    }, 15000); // Increased timeout to 15s
-    
+    }, 20000);
+
     return () => {
       clearTimeout(timer);
       clearTimeout(timeout);
     };
   }, []);
 
-  // Handle WebView messages with better error handling
-  const handleWebViewMessage = async (event) => {
+  // Handle WebView messages
+  const handleWebViewMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log("WebView message received:", data);
-      
+      console.log("WebView message:", data);
+
       if (data.status === "initialized") {
         setIsModelLoading(false);
-        retryCount = 0;
         setErrorMessage(null);
-        console.log("MediaPipe PoseLandmarker initialized successfully");
+        console.log("MediaPipe ready!");
       } else if (data.status === "success") {
         setAnalysisResult(prev => ({ 
           ...prev, 
-          measurements: data.measurements,
-          confidence: data.confidence 
+          measurements: data.measurements 
         }));
         setIsProcessing(false);
-        console.log("Enhanced measurements received:", data.measurements);
         setIsModalVisible(true);
       } else if (data.status === "error") {
-        const errorMsg = `MediaPipe: ${data.message}`;
-        setErrorMessage(prev => prev ? `${prev}, ${errorMsg}` : errorMsg);
+        setErrorMessage(`MediaPipe: ${data.message}`);
         setIsProcessing(false);
-        setIsModelLoading(false);
-        console.error("WebView error:", data.message);
         setIsModalVisible(true);
       }
     } catch (error) {
-      console.error("WebView message handling error:", error.message, error.stack);
-      const errorMsg = `WebView: ${error.message}`;
-      setErrorMessage(prev => prev ? `${prev}, ${errorMsg}` : errorMsg);
+      console.error("Message handling error:", error);
+      setErrorMessage(`WebView communication error`);
       setIsProcessing(false);
-      setIsModelLoading(false);
       setIsModalVisible(true);
     }
   };
 
   // Process image for measurements
   const measureBodyParts = async (imageUri) => {
-    console.log("Starting enhanced image processing...");
     try {
-      if (isModelLoading) {
-        throw new Error("MediaPipe model is still loading. Please wait.");
-      }
-
-      console.log("Resizing image for processing...");
+      console.log("Processing image for measurements...");
+      
       const manipResult = await ImageManipulator.manipulateAsync(
         imageUri,
-        [{ resize: { width: 640 } }], // Increased resolution for better accuracy
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        [{ resize: { width: 480 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
-      
-      console.log("Image resized, base64 length:", manipResult.base64?.length);
+
       const base64Image = `data:image/jpeg;base64,${manipResult.base64}`;
-      
-      if (webViewRef.current && !isModelLoading) {
-        console.log("Sending enhanced image to WebView for muscle analysis...");
+
+      if (webViewRef.current) {
         webViewRef.current.postMessage(JSON.stringify({
           action: "processImage",
           base64Image
         }));
       } else {
-        throw new Error("WebView not ready or model still loading");
+        throw new Error("WebView not ready");
       }
     } catch (error) {
-      console.error("Enhanced image processing error:", error.message, error.stack);
-      const errorMsg = `Image processing: ${error.message}`;
-      setErrorMessage(prev => prev ? `${prev}, ${errorMsg}` : errorMsg);
+      console.error("Measurement error:", error);
+      setErrorMessage(`Measurement failed: ${error.message}`);
       setIsProcessing(false);
       setIsModalVisible(true);
     }
   };
 
-  // Upload image to Cloudinary and save URL to Firebase Realtime Database
+  // Upload to Cloudinary
   const uploadImageToCloudinary = async (uri) => {
-    console.log("Starting Cloudinary upload...");
     try {
+      console.log("Uploading to Cloudinary...");
       const filename = uri.substring(uri.lastIndexOf('/') + 1);
-      console.log("Preparing FormData, filename:", filename);
+      
       const formData = new FormData();
       formData.append('file', { uri, name: filename, type: 'image/jpeg' });
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
       formData.append('api_key', CLOUDINARY_API_KEY);
 
-      console.log("Uploading to Cloudinary...");
-      const cloudinaryResponse = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData,
-        timeout: 15000,
       });
-      const cloudinaryData = await cloudinaryResponse.json();
-      if (!cloudinaryData.secure_url) {
-        throw new Error("Cloudinary upload failed: " + (cloudinaryData.error?.message || "Unknown error"));
+      
+      const data = await response.json();
+      
+      if (!data.secure_url) {
+        throw new Error("Upload failed");
       }
 
-      console.log("SUCCESS: Cloudinary upload complete, URL:", cloudinaryData.secure_url);
-      setCloudinaryUrl(cloudinaryData.secure_url);
+      console.log("Upload successful:", data.secure_url);
+      setCloudinaryUrl(data.secure_url);
 
+      // Save to Firebase if available
       if (database && auth.currentUser) {
-        console.log("Saving URL to Firebase Realtime Database...");
         const dbReference = dbRef(database, `users/${auth.currentUser.uid}/images/${Date.now()}_${filename}`);
         await set(dbReference, {
-          url: cloudinaryData.secure_url,
+          url: data.secure_url,
           uploadedAt: new Date().toISOString(),
         });
-        console.log("SUCCESS: Firebase Realtime Database updated");
-      } else {
-        console.warn("Firebase Realtime Database not initialized, skipping URL storage");
-        setErrorMessage(prev => prev ? `${prev}, Firebase: Realtime Database not initialized` : "Firebase: Realtime Database not initialized");
       }
 
-      return cloudinaryData.secure_url;
+      return data.secure_url;
     } catch (error) {
-      console.error("Cloudinary upload error:", error.message, error.stack);
-      setErrorMessage(prev => prev ? `${prev}, Cloudinary: ${error.message}` : `Cloudinary: ${error.message}`);
-      setIsProcessing(false);
-      setIsModalVisible(true);
+      console.error("Upload error:", error);
+      setErrorMessage(`Upload failed: ${error.message}`);
       return null;
     }
   };
 
   // Send to YOLO backend
   const sendToBackend = async (imageUrl) => {
-    console.log("Sending to YOLO backend:", imageUrl);
     try {
-      console.log("Making POST request to YOLO...");
+      console.log("Sending to YOLO backend...");
       const response = await fetch('http://192.168.100.18:5000/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_url: imageUrl }),
-        timeout: 15000,
       });
+      
       const data = await response.json();
-      console.log("YOLO backend response:", data);
+      console.log("YOLO response:", data);
 
       if (data.success) {
         setAnalysisResult(prev => ({
@@ -530,47 +399,38 @@ export default function TabLayout() {
           height: data.height_ft || "N/A",
           weight: data.weight_kg || "N/A"
         }));
-        console.log("YOLO results stored:", { height: data.height_ft, weight: data.weight_kg });
       } else {
-        throw new Error(data.error || "Backend analysis failed");
+        console.warn("YOLO analysis failed:", data.error);
       }
-    } catch (err) {
-      console.error("YOLO backend error:", err.message, err.stack);
-      setErrorMessage(prev => prev ? `${prev}, YOLO: ${err.message}` : `YOLO: ${err.message}`);
-      setIsProcessing(false);
-      setIsModalVisible(true);
+    } catch (error) {
+      console.error("YOLO error:", error);
+      // Don't set error for YOLO failure, just log it
     }
   };
 
-  // Handle photo capture with improved flow
+  // Handle photo capture
   const handleTakePhoto = async () => {
-    console.log("Camera button pressed");
+    console.log("Taking photo...");
     setIsProcessing(true);
     setErrorMessage(null);
     setCloudinaryUrl(null);
     setAnalysisResult(null);
-    
-    try {
-      if (isModelLoading) {
-        throw new Error("Please wait for the analysis model to finish loading before taking a photo.");
-      }
 
-      console.log("Requesting camera permissions...");
+    try {
+      // Request camera permissions
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        throw new Error("Camera permission is required to analyze your body measurements.");
+        throw new Error("Camera permission required");
       }
-      console.log("Camera permissions granted");
 
-      console.log("Launching camera...");
+      // Launch camera
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.8, // Higher quality for better analysis
-        aspect: [3, 4], // Portrait aspect ratio for full body shots
+        quality: 0.8,
+        aspect: [3, 4],
       });
 
-      console.log("Camera result:", result.canceled ? "canceled" : "image captured");
       if (result.canceled) {
         setIsProcessing(false);
         return;
@@ -578,31 +438,31 @@ export default function TabLayout() {
 
       const uri = result.assets?.[0]?.uri;
       if (!uri) {
-        throw new Error("Could not capture the image. Please try again.");
+        throw new Error("No image captured");
       }
-      console.log("Image captured successfully, URI:", uri);
 
-      // Process both Cloudinary upload and MediaPipe analysis
-      console.log("Starting parallel processing: Cloudinary upload + MediaPipe analysis...");
-      const [cloudinaryUrl] = await Promise.allSettled([
-        uploadImageToCloudinary(uri),
-        measureBodyParts(uri)
-      ]);
+      console.log("Image captured, processing...");
 
-      // Process YOLO if Cloudinary upload succeeded
+      // Process in parallel
+      const uploadPromise = uploadImageToCloudinary(uri);
+      const measurePromise = measureBodyParts(uri);
+
+      const [cloudinaryUrl] = await Promise.allSettled([uploadPromise, measurePromise]);
+
+      // If upload succeeded, send to YOLO
       if (cloudinaryUrl.status === 'fulfilled' && cloudinaryUrl.value) {
-        console.log("Starting YOLO analysis...");
         await sendToBackend(cloudinaryUrl.value);
       }
 
-    } catch (err) {
-      console.error("Photo handling error:", err.message, err.stack);
-      setErrorMessage(`Photo processing failed: ${err.message}`);
+    } catch (error) {
+      console.error("Photo error:", error);
+      setErrorMessage(`Photo processing failed: ${error.message}`);
       setIsProcessing(false);
       setIsModalVisible(true);
     }
   };
 
+  // Back button handler
   const backAction = () => {
     if (backClickCount === 1) BackHandler.exitApp();
     else {
@@ -619,6 +479,7 @@ export default function TabLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.whiteColor }}>
+      {/* Hidden WebView for MediaPipe */}
       <WebView
         ref={webViewRef}
         source={{ html: mediapipeHtml }}
@@ -626,26 +487,14 @@ export default function TabLayout() {
         onMessage={handleWebViewMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        cacheEnabled={false} // Disable cache for development
         originWhitelist={['*']}
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        onError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          console.error("WebView error:", nativeEvent.description, nativeEvent);
-          setErrorMessage(prev => prev ? `${prev}, WebView: ${nativeEvent.description}` : `WebView: ${nativeEvent.description}`);
+        onError={(error) => {
+          console.error("WebView error:", error.nativeEvent.description);
           setIsModelLoading(false);
-          setIsProcessing(false);
-          setIsModalVisible(true);
-        }}
-        onLoadEnd={() => {
-          console.log("WebView loaded successfully");
-        }}
-        onLoadStart={() => {
-          console.log("WebView started loading");
         }}
       />
-      
+
+      {/* Results Modal */}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -654,25 +503,25 @@ export default function TabLayout() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Enhanced Body Analysis Results</Text>
-            
+            <Text style={styles.modalTitle}>Body Analysis Results</Text>
+
             {errorMessage && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
               </View>
             )}
-            
+
             {cloudinaryUrl && (
               <View style={styles.resultRow}>
                 <Text style={styles.modalLabel}>Image Uploaded:</Text>
                 <Text style={styles.modalText}>✅ Success</Text>
               </View>
             )}
-            
+
             {analysisResult && (
               <View style={styles.resultsContainer}>
                 {/* YOLO Results */}
-                <Text style={styles.modalSubtitle}>🏋️ Physical Measurements</Text>
+                <Text style={styles.modalSubtitle}>📏 Physical Measurements</Text>
                 <View style={styles.resultRow}>
                   <Text style={styles.modalLabel}>Height:</Text>
                   <Text style={styles.modalText}>
@@ -686,35 +535,28 @@ export default function TabLayout() {
                   </Text>
                 </View>
 
-                {/* Enhanced Muscle Measurements */}
+                {/* Muscle Measurements */}
                 {analysisResult.measurements && (
                   <>
                     <Text style={styles.modalSubtitle}>💪 Muscle & Body Measurements</Text>
-                    <Text style={styles.confidenceText}>
-                      Analysis Confidence: {((analysisResult.confidence || 0.8) * 100).toFixed(0)}%
-                    </Text>
                     
-                    {/* Upper Body Muscles */}
+                    {/* Upper Body */}
                     <Text style={styles.sectionTitle}>Upper Body</Text>
                     <View style={styles.resultRow}>
                       <Text style={styles.modalLabel}>💪 Shoulder Width:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.shoulderWidth}</Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>🏋️ Upper Arm Length:</Text>
-                      <Text style={styles.modalText}>{analysisResult.measurements.upperArmLength}</Text>
+                      <Text style={styles.modalLabel}>🏋️ Arm Length:</Text>
+                      <Text style={styles.modalText}>{analysisResult.measurements.armLength}</Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>💪 Forearm Length:</Text>
-                      <Text style={styles.modalText}>{analysisResult.measurements.forearmLength}</Text>
-                    </View>
-                    <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>🏋️ Chest Width:</Text>
+                      <Text style={styles.modalLabel}>💪 Chest Width:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.chestWidth}</Text>
                     </View>
 
-                    {/* Core/Six-Pack Area */}
-                    <Text style={styles.sectionTitle}>Core & Six-Pack Area</Text>
+                    {/* Six-Pack Area */}
+                    <Text style={styles.sectionTitle}>🔥 Six-Pack & Core Area</Text>
                     <View style={styles.resultRow}>
                       <Text style={styles.modalLabel}>🔥 Waist Width:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.waistWidth}</Text>
@@ -724,12 +566,16 @@ export default function TabLayout() {
                       <Text style={styles.modalText}>{analysisResult.measurements.abdominalWidth}</Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>📏 Torso Length:</Text>
+                      <Text style={styles.modalLabel}>📏 Abdominal Length:</Text>
+                      <Text style={styles.modalText}>{analysisResult.measurements.abdominalLength}</Text>
+                    </View>
+                    <View style={styles.resultRow}>
+                      <Text style={styles.modalLabel}>📐 Torso Length:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.torsoLength}</Text>
                     </View>
 
-                    {/* Lower Body Muscles */}
-                    <Text style={styles.sectionTitle}>Lower Body</Text>
+                    {/* Lower Body */}
+                    <Text style={styles.sectionTitle}>🦵 Lower Body</Text>
                     <View style={styles.resultRow}>
                       <Text style={styles.modalLabel}>🦵 Hip Width:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.hipWidth}</Text>
@@ -739,33 +585,29 @@ export default function TabLayout() {
                       <Text style={styles.modalText}>{analysisResult.measurements.thighLength}</Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>🏃 Calf Length:</Text>
-                      <Text style={styles.modalText}>{analysisResult.measurements.calfLength}</Text>
-                    </View>
-                    <View style={styles.resultRow}>
-                      <Text style={styles.modalLabel}>📐 Total Leg Length:</Text>
+                      <Text style={styles.modalLabel}>🏃 Leg Length:</Text>
                       <Text style={styles.modalText}>{analysisResult.measurements.legLength}</Text>
                     </View>
 
                     <Text style={styles.noteText}>
-                      💡 Note: Measurements are in relative units based on pose landmarks. 
-                      Higher values indicate larger muscle proportions.
+                      💡 Note: Measurements are in relative units. Higher values indicate larger proportions.
                     </Text>
                   </>
                 )}
               </View>
             )}
-            
+
             <Pressable
               style={styles.modalButton}
               onPress={() => setIsModalVisible(false)}
             >
-              <Text style={styles.modalButtonText}>Close Analysis</Text>
+              <Text style={styles.modalButtonText}>Close</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
+      {/* Tab Navigation */}
       <Tabs
         screenOptions={{
           tabBarStyle: styles.tabBarStyle,
@@ -836,33 +678,30 @@ export default function TabLayout() {
         />
       </Tabs>
 
+      {/* Loading Overlay */}
       {(isProcessing || isModelLoading) && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.primaryColor} />
             <Text style={styles.loaderText}>
-              {isModelLoading ? "🧠 Loading AI Analysis Model..." : "📊 Analyzing Your Body Measurements..."}
+              {isModelLoading ? "🧠 Loading AI Model..." : "📊 Analyzing Body..."}
             </Text>
-            {isModelLoading && (
-              <Text style={styles.loaderSubText}>
-                This may take a few moments on first load
-              </Text>
-            )}
           </View>
         </View>
       )}
 
+      {/* Camera Button */}
       <Pressable
-        style={[styles.cameraButton, (isProcessing || isModelLoading) && styles.cameraButtonDisabled]}
+        style={[styles.cameraButton, isProcessing && styles.cameraButtonDisabled]}
         onPress={handleTakePhoto}
-        disabled={isProcessing || isModelLoading}
+        disabled={isProcessing}
       >
         {isProcessing ? (
           <ActivityIndicator size="small" color={Colors.whiteColor} />
         ) : (
           <Image
             source={require('../../assets/images/icon/camera.png')}
-            style={[styles.cameraIcon, (isProcessing || isModelLoading) && { opacity: 0.5 }]}
+            style={styles.cameraIcon}
           />
         )}
       </Pressable>
@@ -960,13 +799,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '100%',
   },
-  confidenceText: {
-    fontSize: Sizes.small,
-    color: Colors.primaryColor,
-    fontWeight: '500',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
   modalText: {
     fontSize: Sizes.medium,
     color: Colors.darkGray,
@@ -1035,11 +867,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
     fontWeight: '600',
-  },
-  loaderSubText: {
-    fontSize: Sizes.small,
-    color: Colors.lightGray,
-    textAlign: 'center',
-    marginTop: 8,
   },
 });
